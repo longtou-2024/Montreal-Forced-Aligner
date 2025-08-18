@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from time import time
+import argparse
 
 import pywrapfst
 import rich_click as click
@@ -64,8 +65,9 @@ class FakeContext:
         params["profile"] = None
         params["temporary_directory"] = config.TEMPORARY_DIRECTORY
         params["num_jobs"] = 1
-        params["clean"] = False
-        params["final_clean"] = False
+        # NOTE(longtou): without clean, it reuse previous lexicon compiler
+        params["clean"] = True
+        params["final_clean"] = True
         params["verbose"] = False
         params["quiet"] = False
         params["overwrite"] = True
@@ -83,11 +85,12 @@ class FakeContext:
                 v = Path(v)
             self.params[k] = v
 
-def setup_mfa(dict_path="korean_espeak.dict", acoustic_path="korean_espeak.zip"):
+def setup_mfa(dict_path="korean_espeak.dict", acoustic_path="korean_espeak.zip", g2p_path=None):
     context = FakeContext()
     context.set_params(
         dictionary_path=dict_path,
         acoustic_model_path=acoustic_path,
+        g2p_model_path=g2p_path,
     )
     kwargs = context.params
 
@@ -221,21 +224,31 @@ def align_one(
 
 
 if __name__ == '__main__':
-    dict_path = "korean_espeak.dict"
-    acoustic_path = "korean_espeak.zip"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dictionary_path", default="korean_espeak.dict")
+    parser.add_argument("acoustic_model_path", default="korean_espeak.zip")
+    parser.add_argument("g2p_model_path", default="korean_espeak.zip")
+    parser.add_argument("indir", default="tmp")
+    parser.add_argument("outdir", default="outdir")
+    parser.add_argument("--beam", default=10, type=int)
+    parser.add_argument("--retry_beam", default=40, type=int)
+    args = parser.parse_args()
+
     start = time()
-    acoustic_model, g2p_model, lexicon_compiler, tokenizer, conf = setup_mfa(dict_path, acoustic_path)
-    print(f"setup: {time()-start}")
+    acoustic_model, g2p_model, lexicon_compiler, tokenizer, conf = setup_mfa(args.dictionary_path, args.acoustic_model_path, args.g2p_model_path)
+    print(f"setup_mfa: {time()-start}s elapsed")
 
     # NOTE(longtou): custom option
-    conf["beam"] = 5
-    conf["retry_beam"] = 10
+    conf["beam"] = args.beam
+    conf["retry_beam"] = args.retry_beam
 
     t_arr = []
-    outdir = Path("outdir")
+    outdir = Path(args.outdir)
     outdir.mkdir(exist_ok=True)
-    for audio_path in tqdm(Path("tmp").glob("*.wav")):
+    for audio_path in tqdm(Path(args.indir).glob("*.wav")):
         text_path = audio_path.with_suffix(".lab")
+        if not text_path.exists():
+            text_path = text_path.with_suffix(".txt")
         output_path = Path(f"{outdir}/{text_path.stem}.json")
 
         start = time()
@@ -251,7 +264,8 @@ if __name__ == '__main__':
                 tokenizer,
                 conf,
             )
-        except AlignerError:
+        except AlignerError as e:
+            print(e)
             print(f"{audio_path.stem} align fail")
         t_arr.append(time()-start)
 
