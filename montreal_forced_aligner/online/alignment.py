@@ -54,11 +54,11 @@ def align_utterance_online(
                 for w in oovs:
                     if not lexicon_compiler.word_table.member(w):
                         pron = rewriter(w)
-                        if pron:
-                            for p in pron:
-                                lexicon_compiler.add_pronunciation(
-                                    KalpyPronunciation(w, p[0], None, None, None, None, None)
-                                )
+                        # NOTE(longtou): I temporarily fix it
+                        for p in pron:
+                            lexicon_compiler.add_pronunciation(
+                                KalpyPronunciation(w, p[0], None, None, None, None, None)
+                            )
 
         else:
             text, pronunciation_form = tokenizer(text)
