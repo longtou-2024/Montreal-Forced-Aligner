@@ -14,7 +14,7 @@ from kfp import kubernetes
 from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 
-IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v1.3"
+IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v1.5"
 N_GPU = 0
 N_CPU = "80"
 MEM_SIZE = "400Gi"

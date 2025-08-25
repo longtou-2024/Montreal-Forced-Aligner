@@ -50,9 +50,9 @@ if __name__ == "__main__":
 
     cnt = 0
     for sample in tqdm(dataset):
-        cnt += 1
-        if cnt > 50:
-            break
+        #cnt += 1
+        #if cnt > 50:
+        #    break
         uttid = sample["__key__"]
         json_data = json.load(io.BytesIO(sample["json"]))
         audio_format = "wav"
