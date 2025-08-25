@@ -16,7 +16,16 @@ outdir=outdir
 beam=10
 retry_beam=40
 
-python lt_mfa.py \
+#python montreal_forced_aligner/lt_mfa.py \
+#    $dictionary_path \
+#    $acoustic_model_path \
+#    $g2p_model_path \
+#    $indir \
+#    $outdir \
+#    --beam $beam \
+#    --retry_beam $retry_beam
+
+python montreal_forced_aligner/lt_mfa2.py \
     $dictionary_path \
     $acoustic_model_path \
     $g2p_model_path \

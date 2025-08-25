@@ -13,3 +13,5 @@ rich
 rich-click
 numpy
 pynini
+
+webdataset
