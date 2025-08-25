@@ -45,7 +45,8 @@ if __name__ == "__main__":
     tar_fname = f"{outdir}/{shard_name}.tar"
     writer = wds.TarWriter(tar_fname)
     idx = int(shard_name.split('-')[1])
-    f_log = open(f"{str(outdir)}/align_fail{idx}.log", 'w')
+    f_log_name = f"{str(outdir)}/align_fail{idx}.log"
+    f_log = open(f_log_name, 'w')
 
     cnt = 0
     for sample in tqdm(dataset):
@@ -97,5 +98,8 @@ if __name__ == "__main__":
     writer.close()
 
     # write to bucket
-    subprocess.run(f"gcloud storage cp -R {str(outdir)} {args.gcs_url}", shell=True)
-    subprocess.run(f"rm {tar_fname}", shell=True)
+    f_log.flush()
+    f_log.close()
+    subprocess.run(f"gcloud storage cp {tar_fname} {args.gcs_url}/", shell=True)
+    subprocess.run(f"gcloud storage cp {f_log_name} {args.gcs_url}/", shell=True)
+    #subprocess.run(f"rm {tar_fname}", shell=True)

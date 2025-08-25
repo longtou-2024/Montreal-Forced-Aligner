@@ -7,5 +7,6 @@ ADD Montreal-Forced-Aligner /root/Montreal-Forced-Aligner
 WORKDIR /root/Montreal-Forced-Aligner
 RUN ./setup_miniforge.sh conda mfa 3.10
 RUN  . ./activate_python.sh  && conda env update -f environment.yml && pip install -e .
+RUN . ./activate_python.sh && pip install -r requirements.txt
 
 CMD ["/bin/bash"]

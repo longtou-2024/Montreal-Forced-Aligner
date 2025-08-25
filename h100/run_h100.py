@@ -14,7 +14,7 @@ from kfp import kubernetes
 from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 
-IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v1.1"
+IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v1.3"
 N_GPU = 0
 N_CPU = "80"
 MEM_SIZE = "400Gi"
@@ -25,12 +25,13 @@ DICT_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/korean_espeak.dict"
 AM_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/acoustic/korean_espeak.zip"
 G2P_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/g2p/korean_espeak.zip"
 TEMP_DIR = "tempdir"
-GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/"
+# NOTE(longtou): mkdir wds_v2_mfa in advance
+GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/wds_v2_mfa"
 OUTDIR = "wds_v2_mfa"
 
 SHELL_COMMAND = f''' \
 . ./activate_python.sh \
-&& parallel lt_scripts/quality_assurance.py {{}} {DICT_PATH} {AM_PATH} {G2P_PATH} {OUTDIR} {GCS_URL} --temporary_directory {TEMP_DIR}/{{%}} ::: $(ls {SHARD_DIR}/*.tar)
+&& parallel python lt_scripts/build_wds_mfa.py {{}} {DICT_PATH} {AM_PATH} {G2P_PATH} {OUTDIR} {GCS_URL} --temporary_directory {TEMP_DIR}/{{%}} ::: $(ls {SHARD_DIR}/*.tar)
 '''
 
 def add_pod_annotation(

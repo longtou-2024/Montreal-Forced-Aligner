@@ -5,7 +5,7 @@ acoustic_model_path=/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/aco
 g2p_model_path=/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/g2p/korean_espeak.zip
 temp_dir=tempdir
 outdir=outdir
-gcs_url="gs://prod-ai-lab-speech-bucket/longtou/tmp/literature/"
+gcs_url="gs://prod-ai-lab-speech-bucket/longtou/tmp/literature/wds_v2_mfa"
 beam=10
 retry_beam=40
 
