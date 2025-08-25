@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("acoustic_model_path")
     parser.add_argument("g2p_model_path")
     parser.add_argument("outdir")
+    parser.add_argument("gcs_url")
     parser.add_argument("--temporary_directory")
     parser.add_argument("--beam", type=int, default=10)
     parser.add_argument("--retry_beam", type=int, default=40)
@@ -34,19 +35,23 @@ if __name__ == "__main__":
     #acoustic_model_path="/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/acoustic/korean_espeak.zip"
     #g2p_model_path="/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/g2p/korean_espeak.zip"
 
-
     dataset = wds.WebDataset(args.shard_url)
     acoustic_model, g2p_model, lexicon_compiler, tokenizer, conf = setup_mfa(args.dictionary_path, args.acoustic_model_path, args.g2p_model_path, args.temporary_directory)
 
     outdir = Path("outdir")
     outdir.mkdir(exist_ok=True)
-    #if args.start_shard:
-    #    writer = wds.ShardWriter(f"{outdir}/shard-%06d.tar", maxsize=10e9, start_shard=args.start_shard, post=partial(gcp_cp, gcs_url=args.gcs_url))
+    shard_name = Path(args.shard_url).stem
+    #writer = wds.ShardWriter(f"{outdir}/{shard_name}.tar", maxsize=10e9, post=partial(gcp_cp, gcs_url=args.gcs_url))
+    tar_fname = f"{outdir}/{shard_name}.tar"
+    writer = wds.TarWriter(tar_fname)
+    idx = int(shard_name.split('-')[1])
+    f_log = open(f"{str(outdir)}/align_fail{idx}.log", 'w')
 
     cnt = 0
     for sample in tqdm(dataset):
-        #cnt += 1
-        #if cnt > 100: break
+        cnt += 1
+        if cnt > 50:
+            break
         uttid = sample["__key__"]
         json_data = json.load(io.BytesIO(sample["json"]))
         audio_format = "wav"
@@ -60,8 +65,6 @@ if __name__ == "__main__":
             sample_rate = inf.samplerate
             duration = frames / sample_rate
             num_channels = inf.channels
-        if duration < 3 or duration > 30:
-            continue
 
         # NOTE(longtou): custom option
         conf["beam"] = args.beam
@@ -80,15 +83,19 @@ if __name__ == "__main__":
                 conf
             )
         except AlignerError as e:
-            print(f"{uttid} align fail")
-            with open(f"{args.outdir}/{uttid}.json", 'w') as f:
-                json.dump(json_data, f, ensure_ascii=False)
-            with open(f"{args.outdir}/{uttid}.{audio_format}", 'wb') as f:
-                f.write(audio_buf.getvalue())
-            #example = {
-            #    "__key__": uttid,
-            #    "json": json.dumps(json_data, ensure_ascii=False),
-            #    audio_format: audio_buf.getvalue(),
-            #}
-            #writer.write(example)
+            f_log.write(f"{uttid}\n")
+            ret = {}
 
+        # add mfa result
+        json_data["mfa"] = ret
+        example = {
+            "__key__": uttid,
+            "json": json.dumps(json_data, ensure_ascii=False),
+            audio_format: audio_buf.getvalue(),
+        }
+        writer.write(example)
+    writer.close()
+
+    # write to bucket
+    subprocess.run(f"gcloud storage cp -R {str(outdir)} {args.gcs_url}", shell=True)
+    subprocess.run(f"rm {tar_fname}", shell=True)
