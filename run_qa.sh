@@ -3,9 +3,12 @@
 dictionary_path=/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/korean_espeak.dict
 acoustic_model_path=/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/acoustic/korean_espeak.zip
 g2p_model_path=/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/g2p/korean_espeak.zip
+temp_dir=/home/longtou.2024/Documents/MFA
 outdir=outdir
 beam=10
 retry_beam=40
+
+. parse_options.sh
 
 shard_urls=$(ls /home/longtou.2024/mount/longtou/db/literature/wds_v2/*)
 
@@ -14,7 +17,7 @@ parallel --line-buffer -j 24 python lt_scripts/quality_assurance.py {} \
     $acoustic_model_path \
     $g2p_model_path \
     $outdir \
-    --temporary_directory /home/longtou.2024/Documents/{%} \
+    --temporary_directory $temp_dir/{%} \
     --beam $beam \
     --retry_beam $retry_beam \
     ::: $shard_urls
