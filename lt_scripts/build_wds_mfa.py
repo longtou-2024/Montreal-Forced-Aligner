@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("g2p_model_path")
     parser.add_argument("outdir")
     parser.add_argument("gcs_url")
+    parser.add_argument("json_text_key")
     parser.add_argument("--temporary_directory")
     parser.add_argument("--beam", type=int, default=10)
     parser.add_argument("--retry_beam", type=int, default=40)
@@ -57,7 +58,10 @@ if __name__ == "__main__":
         json_data = json.load(io.BytesIO(sample["json"]))
         audio_format = "wav"
         audio_buf = io.BytesIO(sample[audio_format])
-        transcript = json_data["transcript"].strip()
+        transcript = json_data
+        for text_key in args.json_text_key.split(','):
+            transcript = transcript[text_key]
+        transcript = transcript.strip()
 
         audio_buf.seek(0)
         audio_buf.name = f"file.{audio_format}"

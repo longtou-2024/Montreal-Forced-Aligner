@@ -14,12 +14,12 @@ from kfp import kubernetes
 from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 
-IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v1.5"
+IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v1.7"
 N_GPU = 0
-N_CPU = "80"
-MEM_SIZE = "400Gi"
+N_CPU = "120"
+MEM_SIZE = "500Gi"
 MOUNT_PATH = "/home/longtou.2024/mount"
-RECIPE = "literature"
+RECIPE = "commbooks"
 SHARD_DIR = f"{MOUNT_PATH}/longtou/db/{RECIPE}/wds_v2/"
 DICT_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/korean_espeak.dict"
 AM_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/acoustic/korean_espeak.zip"
