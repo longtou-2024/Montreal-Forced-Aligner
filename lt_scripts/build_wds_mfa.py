@@ -88,7 +88,10 @@ if __name__ == "__main__":
                 conf
             )
         except AlignerError as e:
-            f_log.write(f"{uttid}\n")
+            f_log.write(f"{uttid} {e}\n")
+            ret = {}
+        except Exception as e:
+            f_log.write(f"{uttid} {e}\n")
             ret = {}
 
         # add mfa result
