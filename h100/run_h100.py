@@ -14,20 +14,20 @@ from kfp import kubernetes
 from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 
-IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v1.17"
+IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v2.1"
 N_GPU = 0
-N_CPU = "60"
-MEM_SIZE = "300Gi"
+N_CPU = "70"
+MEM_SIZE = "250Gi"
 MOUNT_PATH = "/home/longtou.2024/mount"
-RECIPE = "mediazen_emotion"
-SHARD_DIR = f"{MOUNT_PATH}/longtou/db/{RECIPE}/wds_v2"
+RECIPE = "emilia_yodas"
+SHARD_DIR = f"{MOUNT_PATH}/longtou/db/{RECIPE}/wds/ko"
 DICT_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/korean_espeak.dict"
 AM_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/acoustic/korean_espeak.zip"
 G2P_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/g2p/korean_espeak.zip"
 TEMP_DIR = "tempdir"
 # NOTE(longtou): mkdir wds_v2_mfa in advance
-GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/wds_v2_mfa"
-JSON_TEXT_KEY = "text_info,OrgLabelText"
+GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/wds_mfa/ko"
+JSON_TEXT_KEY = "text"
 OUTDIR = "wds_v2_mfa"
 
 #$(cat /home/longtou.2024/mount/longtou/tmp/mediazen_shard_list.txt)

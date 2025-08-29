@@ -56,7 +56,7 @@ if __name__ == "__main__":
         #    break
         uttid = sample["__key__"]
         json_data = json.load(io.BytesIO(sample["json"]))
-        audio_format = "wav"
+        audio_format = "wav" if "wav" in sample else "mp3"
         audio_buf = io.BytesIO(sample[audio_format])
         transcript = json_data
         for text_key in args.json_text_key.split(','):
