@@ -14,26 +14,27 @@ from kfp import kubernetes
 from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 
-IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v2.1"
+IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v2.18"
 N_GPU = 0
-N_CPU = "70"
-MEM_SIZE = "250Gi"
+N_CPU = "28"
+MEM_SIZE = "200Gi"
 MOUNT_PATH = "/home/longtou.2024/mount"
-RECIPE = "emilia_yodas"
-SHARD_DIR = f"{MOUNT_PATH}/longtou/db/{RECIPE}/wds/ko"
+RECIPE = "ku_old"
+SHARD_DIR = f"{MOUNT_PATH}/longtou/db/{RECIPE}/emilia_pipe"
 DICT_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/korean_espeak.dict"
 AM_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/acoustic/korean_espeak.zip"
 G2P_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/g2p/korean_espeak.zip"
 TEMP_DIR = "tempdir"
 # NOTE(longtou): mkdir wds_v2_mfa in advance
-GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/wds_mfa/ko"
-JSON_TEXT_KEY = "text"
-OUTDIR = "wds_v2_mfa"
+GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/emilia_pipe_mfa"
+JSON_TEXT_KEY = "text" # ',' separated keys
+OUTDIR = "emilia_pipe_mfa"
 
-#$(cat /home/longtou.2024/mount/longtou/tmp/mediazen_shard_list.txt)
+
+#$(cat /home/longtou.2024/mount/longtou/tmp/mediazen_teen_shard_list.txt)
 SHELL_COMMAND = f''' \
 . ./activate_python.sh \
-&& parallel python lt_scripts/build_wds_mfa.py {{}} {DICT_PATH} {AM_PATH} {G2P_PATH} {OUTDIR} {GCS_URL} {JSON_TEXT_KEY} --temporary_directory {TEMP_DIR}/{{%}} ::: $(ls {SHARD_DIR}/*.tar)
+&& parallel --delay 1s python lt_scripts/build_wds_mfa.py {{}} {DICT_PATH} {AM_PATH} {G2P_PATH} {OUTDIR} {GCS_URL} {JSON_TEXT_KEY} --temporary_directory {TEMP_DIR}/{{%}} ::: $(ls {SHARD_DIR}/*.tar)
 '''
 def add_pod_annotation(
     task: PipelineTask,

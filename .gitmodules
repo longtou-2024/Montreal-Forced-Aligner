@@ -1,0 +1,4 @@
+[submodule "espnet"]
+	path = espnet
+	url = https://github.com/longtou-2024/espnet.git
+	branch = develop

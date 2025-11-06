@@ -52,7 +52,7 @@ dependencies:
       - twine
       # Tokenization dependencies
       # NOTE(longtou): install error
-      #- python-mecab-ko
+      - python-mecab-ko
       - jamo
       - pythainlp
       - hanziconv

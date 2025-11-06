@@ -15,3 +15,6 @@ numpy
 pynini
 
 webdataset
+# espnet phonemizer, espeak
+-e ./espnet
+phonemizer==3.0
