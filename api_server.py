@@ -102,7 +102,7 @@ if __name__ == "__main__":
         uvicorn.run(
             "api_server:app",
             host="0.0.0.0",
-            port=8002,
+            port=8001,
             log_level="info",
             reload=True  # 개발 환경에서 유용
         )
