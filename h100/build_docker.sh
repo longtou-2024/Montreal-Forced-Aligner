@@ -1,5 +1,6 @@
 #docker build -t longtou/mfa:lt .
-docker build -t longtou/mfa:lt -f Dockerfile.lite .
+#docker build -t longtou/mfa:lt -f Dockerfile.lite .
+docker build -t longtou/mfa:lt -f Dockerfile.endpoint .
 docker tag longtou/mfa:lt us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:lt
 
 #docker run -it --runtime=nvidia longtou/mfa:lt /bin/bash
