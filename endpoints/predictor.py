@@ -1,6 +1,7 @@
 from typing import Any
 import base64
 import io
+import json
 
 from montreal_forced_aligner.lt_mfa2 import setup_mfa, align_one
 from montreal_forced_aligner.exceptions import AlignerError
@@ -38,7 +39,9 @@ class MFAPredictor(Predictor):
         self._conf["retry_beam"] = 40
 
     def preprocess(self, prediction_input: dict) -> dict:
-        instances = prediction_input["instances"]
+        instances: list = prediction_input["instances"]
+        # NOTE(longtou): not support batch prediction
+        instances = instances[0]
 
         audio_format = "wav"
         transcript = instances["transcript"]
@@ -82,6 +85,7 @@ class MFAPredictor(Predictor):
 
     def postprocess(self, prediction_results: dict) -> dict:
         result = {
-            "predictions": prediction_results
+            #"predictions": json.dumps(prediction_results, ensure_ascii=False)
+            "predictions": [prediction_results]
         }
         return result

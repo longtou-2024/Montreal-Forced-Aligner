@@ -32,31 +32,33 @@ def main():
 
     local_model = LocalModel.build_cpr_model(
         src_dir=USER_SRC_DIR,
-        output_image_uri="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.0",
+        output_image_uri="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.2",
         predictor=MFAPredictor,
         base_image="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_base_v1.0",
     )
     #breakpoint()
     print(local_model.get_serving_container_spec())
-    #local_model.push_image()
+    local_model.push_image()
+    print("push image done")
 
-    with local_model.deploy_to_local_endpoint(
-        artifact_uri=ARTIFACT_URI,
-        #credential_path="local/path/to/your/credentials",
-    ) as local_endpoint:
-        health_check_response = local_endpoint.run_health_check()
-        print(health_check_response, health_check_response.content)
+    # run local
+    #with local_model.deploy_to_local_endpoint(
+    #    artifact_uri=ARTIFACT_URI,
+    #    #credential_path="local/path/to/your/credentials",
+    #) as local_endpoint:
+    #    health_check_response = local_endpoint.run_health_check()
+    #    print(health_check_response, health_check_response.content)
 
-        sample_dict = get_sample_request()
-        request_dict = {"instances": sample_dict}
-        predict_response = local_endpoint.predict(
-            request=json.dumps(request_dict),
-            headers={"Content-Type": "application/json"},
-        )
-        breakpoint()
-        print(predict_response, predict_response.content)
+    #    sample_dict = get_sample_request()
+    #    request_dict = {"instances": [sample_dict]}
+    #    predict_response = local_endpoint.predict(
+    #        request=json.dumps(request_dict, ensure_ascii=False),
+    #        headers={"Content-Type": "application/json"},
+    #    )
+    #    breakpoint()
+    #    print(predict_response, predict_response.content)
 
-        local_endpoint.print_container_logs()
+    #    print(local_endpoint.print_container_logs())
 
 
 
