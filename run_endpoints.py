@@ -22,6 +22,7 @@ def get_sample_request():
     with open("ssml_poc/sample_01.lab", 'r') as f:
         line = f.readlines()[0]
         result["transcript"] = line.strip()
+        result["audio_format"] = "wav"
 
     return result
 
@@ -32,7 +33,7 @@ def main():
 
     local_model = LocalModel.build_cpr_model(
         src_dir=USER_SRC_DIR,
-        output_image_uri="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.2",
+        output_image_uri="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.3",
         predictor=MFAPredictor,
         base_image="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_base_v1.0",
     )
@@ -55,7 +56,10 @@ def main():
     #        request=json.dumps(request_dict, ensure_ascii=False),
     #        headers={"Content-Type": "application/json"},
     #    )
-    #    breakpoint()
+    #    #breakpoint()
+    #    result_dict = json.loads(predict_response.content.decode('utf8'))
+    #    with open("out.json", 'w') as f:
+    #        json.dump(result_dict, f, ensure_ascii=False)
     #    print(predict_response, predict_response.content)
 
     #    print(local_endpoint.print_container_logs())

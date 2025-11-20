@@ -2,6 +2,7 @@ from typing import Any
 import base64
 import io
 import json
+import time
 
 from montreal_forced_aligner.lt_mfa2 import setup_mfa, align_one
 from montreal_forced_aligner.exceptions import AlignerError
@@ -40,10 +41,11 @@ class MFAPredictor(Predictor):
 
     def preprocess(self, prediction_input: dict) -> dict:
         instances: list = prediction_input["instances"]
+        #parameters: dict = prediction_input["parameters"]
         # NOTE(longtou): not support batch prediction
         instances = instances[0]
 
-        audio_format = "wav"
+        audio_format = instances.get("audio_format", "wav")
         transcript = instances["transcript"]
         audio = instances["audio"]
         decoded_audio = base64.b64decode(audio)
@@ -64,6 +66,7 @@ class MFAPredictor(Predictor):
         audio_buf = instances["audio_buf"]
         audio_format = instances["audio_format"]
         try:
+            s_time = time.perf_counter()
             result = align_one(
                 audio_buf,
                 audio_format,
@@ -75,6 +78,8 @@ class MFAPredictor(Predictor):
                 self._tokenizer,
                 self._conf
             )
+            e_time = time.perf_counter()
+            result["align_time"] = e_time - s_time
         #except AlignerError as e:
         except Exception as e:
             error_msg = str(e)
