@@ -8,8 +8,13 @@ from google.cloud.aiplatform.prediction import LocalModel
 from endpoints.predictor import MFAPredictor
 
 USER_SRC_DIR = "endpoints"
-ARTIFACT_URI = "gs://prod-ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
+#ARTIFACT_URI = "gs://prod-ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
+ARTIFACT_URI = "gs://ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
 
+#OUTPUT_IMAGE_URI = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.3"
+OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_v1.0"
+#BASE_IMAGE = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_base_v1.0"
+BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v1.0"
 def get_sample_request():
     result = {}
     with open("ssml_poc/sample_01.wav", 'rb') as f:
@@ -33,9 +38,9 @@ def main():
 
     local_model = LocalModel.build_cpr_model(
         src_dir=USER_SRC_DIR,
-        output_image_uri="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.3",
+        output_image_uri=OUTPUT_IMAGE_URI,
         predictor=MFAPredictor,
-        base_image="us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_base_v1.0",
+        base_image=BASE_IMAGE,
     )
     #breakpoint()
     print(local_model.get_serving_container_spec())

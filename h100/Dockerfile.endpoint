@@ -11,6 +11,6 @@ RUN ./setup_miniforge.sh conda mfa 3.11
 RUN . ./activate_python.sh && pip install uv
 RUN  . ./activate_python.sh  && conda env update -f environment.yml && uv pip install -e .
 RUN . ./activate_python.sh && uv pip install -r requirements.txt
-ENV "/root/Montreal-Forced-Aligner/conda/envs/mfa/bin:/root/Montreal-Forced-Aligner/conda/condabin:$PATH"
+ENV PATH="/root/Montreal-Forced-Aligner/conda/envs/mfa/bin:/root/Montreal-Forced-Aligner/conda/condabin:$PATH"
 
 CMD ["/bin/bash"]
