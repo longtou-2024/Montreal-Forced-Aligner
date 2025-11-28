@@ -38,6 +38,21 @@ def parse_timepoints(ssml_results, mfa_results):
                 raise Exception(f"{word} != {_word}")
             word_idx += 1
 
+    if ssml_results[-1]['tag_name'] == "mark": # case 2
+        start, end, _word = mfa_entries[-1]
+        if _word == "<eps>":
+            t_point = {
+                'markName': ssml_results[-1]['mark_name'],
+                'timeSeconds': start
+            }
+        else:
+            t_point = {
+                'markName': ssml_results[-1]['mark_name'],
+                'timeSeconds': end
+            }
+
+        results.append(t_point)
+
     return results
 
 def parse_ssml(ssml_string):

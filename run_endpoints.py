@@ -7,6 +7,8 @@ from google.cloud.aiplatform.prediction import LocalModel
 
 from endpoints.predictor import MFAPredictor
 
+os.environ["VERTEX_CPR_MAX_WORKERS" ] = "2"
+
 USER_SRC_DIR = "endpoints"
 ARTIFACT_URI = "gs://ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
 
@@ -26,6 +28,23 @@ def get_sample_request():
         line = f.readlines()[0]
         result["transcript"] = line.strip()
         result["audio_format"] = "wav"
+    ssml_1 = """
+    <speak>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
+    """
+
+    ssml_2 = """
+    <speak>
+    아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!<mark name="mark_02" />
+    </speak>
+    """
+
+    ssml_3 = """
+    <speak>
+    <mark name="mark_00"/>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 <mark name="mark_02" /> 돌진한 거냐고!<mark name="mark_03" />
+    </speak>
+    """
+
+    result["ssml"] = ssml_2
 
     return result
 
@@ -59,8 +78,8 @@ def main():
             request=json.dumps(request_dict, ensure_ascii=False),
             headers={"Content-Type": "application/json"},
         )
-        breakpoint()
         result_dict = json.loads(predict_response.content.decode('utf8'))
+        breakpoint()
         with open("out.json", 'w') as f:
             json.dump(result_dict, f, ensure_ascii=False)
         print(predict_response, predict_response.content)

@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import time
+import uuid
 
 from montreal_forced_aligner.lt_mfa2 import setup_mfa, align_one
 from montreal_forced_aligner.exceptions import AlignerError
@@ -27,7 +28,10 @@ class MFAPredictor(Predictor):
         dictionary_path = "korean_espeak.dict"
         acoustic_model_path = "acoustic/korean_espeak.zip"
         g2p_model_path = "g2p/korean_espeak.zip"
-        x = setup_mfa(dictionary_path, acoustic_model_path, g2p_model_path, temporary_directory=None)
+        # temporary_directory: default="~/Documents/MFA"
+        # NOTE(longtou): mp 에서 충돌하지 않게?
+        tmp_dir_name = f"~/Documents/MFA/{uuid.uuid4()}"
+        x = setup_mfa(dictionary_path, acoustic_model_path, g2p_model_path, temporary_directory=tmp_dir_name)
         self._acoustic_model = x[0]
         self._g2p_model = x[1]
         self._lexicon_compiler = x[2]
@@ -50,7 +54,9 @@ class MFAPredictor(Predictor):
         if ssml:
             ssml_results = parse_ssml(ssml)
             transcript = [item['text'] for item in ssml_results if 'text' in item]
+            transcript = " ".join(transcript)
         elif transcript:
+            ssml_results = None
             pass
         else:
             return {"error": "ssml or transcript must be provided"}
@@ -92,9 +98,10 @@ class MFAPredictor(Predictor):
             )
             e_time = time.perf_counter()
             align_time = e_time - s_time
+            del mfa_result['tiers']['phones'] # not used
 
             predict_results = {}
-            if "ssml_results" in instances:
+            if instances.get('ssml_results'):
                 timepoints = parse_timepoints(instances['ssml_results'], mfa_result)
                 predict_results.update({
                     'timepoints': timepoints,
