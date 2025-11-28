@@ -8,13 +8,11 @@ from google.cloud.aiplatform.prediction import LocalModel
 from endpoints.predictor import MFAPredictor
 
 USER_SRC_DIR = "endpoints"
-#ARTIFACT_URI = "gs://prod-ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
 ARTIFACT_URI = "gs://ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
 
 #OUTPUT_IMAGE_URI = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.3"
-OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_v1.0"
-#BASE_IMAGE = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_base_v1.0"
-BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v1.0"
+OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_v2.0"
+BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v2.0"
 def get_sample_request():
     result = {}
     with open("ssml_poc/sample_01.wav", 'rb') as f:
@@ -44,30 +42,30 @@ def main():
     )
     #breakpoint()
     print(local_model.get_serving_container_spec())
-    local_model.push_image()
-    print("push image done")
+    #local_model.push_image()
+    #print("push image done")
 
     # run local
-    #with local_model.deploy_to_local_endpoint(
-    #    artifact_uri=ARTIFACT_URI,
-    #    #credential_path="local/path/to/your/credentials",
-    #) as local_endpoint:
-    #    health_check_response = local_endpoint.run_health_check()
-    #    print(health_check_response, health_check_response.content)
+    with local_model.deploy_to_local_endpoint(
+        artifact_uri=ARTIFACT_URI,
+        #credential_path="local/path/to/your/credentials",
+    ) as local_endpoint:
+        health_check_response = local_endpoint.run_health_check()
+        print(health_check_response, health_check_response.content)
 
-    #    sample_dict = get_sample_request()
-    #    request_dict = {"instances": [sample_dict]}
-    #    predict_response = local_endpoint.predict(
-    #        request=json.dumps(request_dict, ensure_ascii=False),
-    #        headers={"Content-Type": "application/json"},
-    #    )
-    #    #breakpoint()
-    #    result_dict = json.loads(predict_response.content.decode('utf8'))
-    #    with open("out.json", 'w') as f:
-    #        json.dump(result_dict, f, ensure_ascii=False)
-    #    print(predict_response, predict_response.content)
+        sample_dict = get_sample_request()
+        request_dict = {"instances": [sample_dict]}
+        predict_response = local_endpoint.predict(
+            request=json.dumps(request_dict, ensure_ascii=False),
+            headers={"Content-Type": "application/json"},
+        )
+        breakpoint()
+        result_dict = json.loads(predict_response.content.decode('utf8'))
+        with open("out.json", 'w') as f:
+            json.dump(result_dict, f, ensure_ascii=False)
+        print(predict_response, predict_response.content)
 
-    #    print(local_endpoint.print_container_logs())
+        print(local_endpoint.print_container_logs())
 
 
 

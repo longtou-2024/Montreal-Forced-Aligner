@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Optional
 import base64
 import io
 import json
@@ -7,9 +7,10 @@ import time
 from montreal_forced_aligner.lt_mfa2 import setup_mfa, align_one
 from montreal_forced_aligner.exceptions import AlignerError
 from espnet2.text.phoneme_tokenizer import PhonemeTokenizer
-
 from google.cloud.aiplatform.prediction.predictor import Predictor
 from google.cloud.aiplatform.utils import prediction_utils
+
+from endpoints.utils import parse_ssml, parse_timepoints
 
 
 class MFAPredictor(Predictor):
@@ -17,9 +18,8 @@ class MFAPredictor(Predictor):
         super().__init__()
 
     def load(self, artifacts_uri: str) -> None:
-        # NOTE(longtou): copy files 
-        # from "/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/"
-        # from "gs://prod-ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak/"
+        # NOTE(longtou): SDK automatically copy files 
+        # from "gs://ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak/"
         # to "." (working dir)
         prediction_utils.download_model_artifacts(artifacts_uri)
 
@@ -41,19 +41,29 @@ class MFAPredictor(Predictor):
 
     def preprocess(self, prediction_input: dict) -> dict:
         instances: list = prediction_input["instances"]
-        #parameters: dict = prediction_input["parameters"]
         # NOTE(longtou): not support batch prediction
-        instances = instances[0]
+        instance = instances[0]
+        parameters: Optional[dict] = prediction_input.get("parameters")
 
-        audio_format = instances.get("audio_format", "wav")
-        transcript = instances["transcript"]
-        audio = instances["audio"]
+        ssml: Optional[str] = instance.get("ssml")
+        transcript: Optional[str] = instance.get("transcript")
+        if ssml:
+            ssml_results = parse_ssml(ssml)
+            transcript = [item['text'] for item in ssml_results if 'text' in item]
+        elif transcript:
+            pass
+        else:
+            return {"error": "ssml or transcript must be provided"}
+
+        audio = instance["audio"]
+        audio_format = instance.get("audio_format", "wav")
         decoded_audio = base64.b64decode(audio)
         audio_buf = io.BytesIO(decoded_audio)
         audio_buf.seek(0)
         audio_buf.name = f"file.{audio_format}"
 
         result = {
+            "ssml_results": ssml_results,
             "transcript": transcript,
             "audio_buf": audio_buf,
             "audio_format": audio_format,
@@ -62,12 +72,14 @@ class MFAPredictor(Predictor):
 
 
     def predict(self, instances: dict) -> dict:
+        if "error" in instances:
+            return instances
         transcript = instances["transcript"]
         audio_buf = instances["audio_buf"]
         audio_format = instances["audio_format"]
         try:
             s_time = time.perf_counter()
-            result = align_one(
+            mfa_result = align_one(
                 audio_buf,
                 audio_format,
                 transcript,
@@ -79,18 +91,28 @@ class MFAPredictor(Predictor):
                 self._conf
             )
             e_time = time.perf_counter()
-            result["align_time"] = e_time - s_time
-        #except AlignerError as e:
+            align_time = e_time - s_time
+
+            predict_results = {}
+            if "ssml_results" in instances:
+                timepoints = parse_timepoints(instances['ssml_results'], mfa_result)
+                predict_results.update({
+                    'timepoints': timepoints,
+                })
+            else:
+                predict_results.update({
+                    'mfa_result': mfa_result
+                })
+            predict_results.update({'align_time': align_time})
         except Exception as e:
             error_msg = str(e)
-            result = {"error": error_msg}
+            predict_results = {"error": error_msg}
 
-        return result
+        return predict_results
 
 
     def postprocess(self, prediction_results: dict) -> dict:
         result = {
-            #"predictions": json.dumps(prediction_results, ensure_ascii=False)
             "predictions": [prediction_results]
         }
         return result

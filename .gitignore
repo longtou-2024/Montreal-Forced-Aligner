@@ -92,3 +92,7 @@ docs/source/api/
 *.lprof
 
 *.pclprof
+
+# longtou
+Miniforge3-Linux-x86_64.sh
+activate_python.sh
