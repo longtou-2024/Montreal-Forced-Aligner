@@ -11,27 +11,30 @@ USER_SRC_DIR = "endpoints"
 ARTIFACT_URI = "gs://ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
 
 #OUTPUT_IMAGE_URI = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.3"
-OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_v2.2"
-BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v2.2"
+OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_v2.3"
+BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v2.3"
 
 debug_samples = [
-    {
-    "text": """
-    아니, 왜 하필 제일 높은 사람한테 돌진한 거냐고!
-    """},
+    #{
+    #"text": """
+    #아니, 왜 하필 제일 높은 사람한테 돌진한 거냐고!
+    #"""},
     {'ssml': """
-    <speak>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
+    <speak>아니, 왜 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
     """},
-    {'ssml': """
-    <speak>
-    아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!<mark name="mark_02" />
-    </speak>
-    """},
-    {'ssml': """
-    <speak>
-    <mark name="mark_00"/>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 <mark name="mark_02" /> 돌진한 거냐고!<mark name="mark_03" />
-    </speak>
-    """ },
+    #{'ssml': """
+    #<speak>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
+    #"""},
+    #{'ssml': """
+    #<speak>
+    #아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!<mark name="mark_02" />
+    #</speak>
+    #"""},
+    #{'ssml': """
+    #<speak>
+    #<mark name="mark_00"/>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 <mark name="mark_02" /> 돌진한 거냐고!<mark name="mark_03" />
+    #</speak>
+    #""" },
                  ]
 
 def get_sample_request():

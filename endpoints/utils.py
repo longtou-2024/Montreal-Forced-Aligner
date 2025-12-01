@@ -105,7 +105,8 @@ def parse_ssml(ssml_string):
 
         # 검증
         # 1) remove text between <speak> and <prosody>
-        if results[1]['tag_name'] == 'prosody' and 'text' in results[0]:
+        # <speak></prosody>...
+        if len(results) > 1 and results[1]['tag_name'] == 'prosody' and 'text' in results[0]:
             del results[0]['text']
         # 2) unique tag
         if len([item for item in results if item['tag_name'] == 'speak']) > 1:
