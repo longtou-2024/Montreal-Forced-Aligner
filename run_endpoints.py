@@ -7,14 +7,33 @@ from google.cloud.aiplatform.prediction import LocalModel
 
 from endpoints.predictor import MFAPredictor
 
-os.environ["VERTEX_CPR_MAX_WORKERS" ] = "2"
-
 USER_SRC_DIR = "endpoints"
 ARTIFACT_URI = "gs://ai-lab-speech-bucket/longtou/db/commbooks/mfa/espeak"
 
 #OUTPUT_IMAGE_URI = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:endpoint_v1.3"
-OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_v2.0"
-BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v2.0"
+OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_v2.2"
+BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v2.2"
+
+debug_samples = [
+    {
+    "text": """
+    아니, 왜 하필 제일 높은 사람한테 돌진한 거냐고!
+    """},
+    {'ssml': """
+    <speak>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
+    """},
+    {'ssml': """
+    <speak>
+    아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!<mark name="mark_02" />
+    </speak>
+    """},
+    {'ssml': """
+    <speak>
+    <mark name="mark_00"/>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 <mark name="mark_02" /> 돌진한 거냐고!<mark name="mark_03" />
+    </speak>
+    """ },
+                 ]
+
 def get_sample_request():
     result = {}
     with open("ssml_poc/sample_01.wav", 'rb') as f:
@@ -28,23 +47,6 @@ def get_sample_request():
         line = f.readlines()[0]
         result["transcript"] = line.strip()
         result["audio_format"] = "wav"
-    ssml_1 = """
-    <speak>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
-    """
-
-    ssml_2 = """
-    <speak>
-    아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!<mark name="mark_02" />
-    </speak>
-    """
-
-    ssml_3 = """
-    <speak>
-    <mark name="mark_00"/>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 <mark name="mark_02" /> 돌진한 거냐고!<mark name="mark_03" />
-    </speak>
-    """
-
-    result["ssml"] = ssml_2
 
     return result
 
@@ -60,9 +62,13 @@ def main():
         base_image=BASE_IMAGE,
     )
     #breakpoint()
+    from google.cloud.aiplatform.compat.types import env_var
+    local_model.serving_container_spec.env = [env_var.EnvVar(name="VERTEX_CPR_WEB_CONCURRENCY", value='1')]
+
     print(local_model.get_serving_container_spec())
     #local_model.push_image()
     #print("push image done")
+    #import sys; sys.exit()
 
     # run local
     with local_model.deploy_to_local_endpoint(
@@ -72,19 +78,35 @@ def main():
         health_check_response = local_endpoint.run_health_check()
         print(health_check_response, health_check_response.content)
 
-        sample_dict = get_sample_request()
-        request_dict = {"instances": [sample_dict]}
-        predict_response = local_endpoint.predict(
-            request=json.dumps(request_dict, ensure_ascii=False),
-            headers={"Content-Type": "application/json"},
-        )
-        result_dict = json.loads(predict_response.content.decode('utf8'))
-        breakpoint()
-        with open("out.json", 'w') as f:
-            json.dump(result_dict, f, ensure_ascii=False)
-        print(predict_response, predict_response.content)
+        #sample_dict = get_sample_request()
+        #request_dict = {"instances": [sample_dict]}
+        #predict_response = local_endpoint.predict(
+        #    request=json.dumps(request_dict, ensure_ascii=False),
+        #    headers={"Content-Type": "application/json"},
+        #)
+        #result_dict = json.loads(predict_response.content.decode('utf8'))
+        #breakpoint()
+        #with open("out.json", 'w') as f:
+        #    json.dump(result_dict, f, ensure_ascii=False)
+        #print(predict_response, predict_response.content)
 
-        print(local_endpoint.print_container_logs())
+        #print(local_endpoint.print_container_logs())
+
+        for item in debug_samples:
+            sample_dict = get_sample_request()
+            for k, v in item.items():
+                sample_dict[k] = v
+            request_dict = {"instances": [sample_dict]}
+            predict_response = local_endpoint.predict(
+                request=json.dumps(request_dict, ensure_ascii=False),
+                headers={"Content-Type": "application/json"},
+            )
+            result_dict = json.loads(predict_response.content.decode('utf8'))
+
+            print(result_dict)
+            #breakpoint()
+            #with open("out.json", 'w') as f:
+            #    json.dump(result_dict, f, ensure_ascii=False)
 
 
 
