@@ -18,3 +18,5 @@ webdataset
 # espnet phonemizer, espeak
 -e ./espnet
 phonemizer==3.0
+# endpoint
+pydub

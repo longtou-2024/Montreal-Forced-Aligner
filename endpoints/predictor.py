@@ -13,7 +13,11 @@ from espnet2.text.phoneme_tokenizer import PhonemeTokenizer
 from google.cloud.aiplatform.prediction.predictor import Predictor
 from google.cloud.aiplatform.utils import prediction_utils
 
-from endpoints.utils import parse_ssml, parse_timepoints
+from endpoints.utils import (
+    parse_ssml,
+    parse_timepoints,
+    limit_silence_duration,
+)
 
 
 class MFAPredictor(Predictor):
@@ -49,7 +53,7 @@ class MFAPredictor(Predictor):
         instances: list = prediction_input["instances"]
         # NOTE(longtou): not support batch prediction
         instance = instances[0]
-        parameters: Optional[dict] = prediction_input.get("parameters")
+        #parameters: Optional[dict] = prediction_input.get("parameters")
 
         ssml: Optional[str] = instance.get("ssml")
         transcript: Optional[str] = instance.get("transcript")
@@ -75,6 +79,7 @@ class MFAPredictor(Predictor):
             "transcript": transcript,
             "audio_buf": audio_buf,
             "audio_format": audio_format,
+            "max_sil_duration": instance.get("max_sil_duration"),
         }
         return result
 
@@ -85,6 +90,7 @@ class MFAPredictor(Predictor):
         transcript = instances["transcript"]
         audio_buf = instances["audio_buf"]
         audio_format = instances["audio_format"]
+        # 1) mfa align
         try:
             s_time = time.perf_counter()
             mfa_result = align_one(
@@ -102,7 +108,19 @@ class MFAPredictor(Predictor):
             align_time = e_time - s_time
             del mfa_result['tiers']['phones'] # not used
 
-            predict_results = {}
+            # 2) silence trimming
+            if max_dur_s := instances.get('max_sil_duration'):
+                audio_buf.seek(0)
+                trim_audio_buf, mfa_result = limit_silence_duration(
+                    audio_buf, audio_format, mfa_result, max_dur_s)
+                predict_results = {
+                    'trim_audio_buf': trim_audio_buf,
+                    'max_sil_duration': max_dur_s,
+                }
+            else:
+                predict_results = {}
+
+            # 3) parse timepoints
             if instances.get('ssml_results'):
                 timepoints = parse_timepoints(instances['ssml_results'], mfa_result)
                 predict_results.update({
@@ -121,6 +139,14 @@ class MFAPredictor(Predictor):
 
 
     def postprocess(self, prediction_results: dict) -> dict:
+        if prediction_results.get("max_sil_duration"):
+            del prediction_results['max_sil_duration']
+            audio_buf = prediction_results['trim_audio_buf']
+            audio_buf.seek(0)
+            audio_string = base64.b64encode(audio_buf.read()).decode('utf-8')
+            del prediction_results['trim_audio_buf']
+            prediction_results['audioContent'] = audio_string
+
         result = {
             "predictions": [prediction_results]
         }

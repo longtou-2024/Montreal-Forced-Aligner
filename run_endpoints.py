@@ -15,26 +15,26 @@ OUTPUT_IMAGE_URI = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa
 BASE_IMAGE = "asia-northeast3-docker.pkg.dev/dev-ai-project-357507/tts/mfa:endpoint_base_v2.3"
 
 debug_samples = [
-    #{
-    #"text": """
-    #아니, 왜 하필 제일 높은 사람한테 돌진한 거냐고!
-    #"""},
+    {
+    "text": """
+    아니, 왜 하필 제일 높은 사람한테 돌진한 거냐고!
+    """},
     {'ssml': """
     <speak>아니, 왜 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
     """},
-    #{'ssml': """
-    #<speak>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
-    #"""},
-    #{'ssml': """
-    #<speak>
-    #아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!<mark name="mark_02" />
-    #</speak>
-    #"""},
-    #{'ssml': """
-    #<speak>
-    #<mark name="mark_00"/>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 <mark name="mark_02" /> 돌진한 거냐고!<mark name="mark_03" />
-    #</speak>
-    #""" },
+    {'ssml': """
+    <speak>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!</speak>
+    """},
+    {'ssml': """
+    <speak>
+    아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 돌진한 거냐고!<mark name="mark_02" />
+    </speak>
+    """},
+    {'ssml': """
+    <speak>
+    <mark name="mark_00"/>아니, 왜<mark name="mark_01" /> 하필 제일 높은 사람한테 <mark name="mark_02" /> 돌진한 거냐고!<mark name="mark_03" />
+    </speak>
+    """ },
                  ]
 
 def get_sample_request():
@@ -65,13 +65,13 @@ def main():
         base_image=BASE_IMAGE,
     )
     #breakpoint()
-    from google.cloud.aiplatform.compat.types import env_var
-    local_model.serving_container_spec.env = [env_var.EnvVar(name="VERTEX_CPR_WEB_CONCURRENCY", value='1')]
+    #from google.cloud.aiplatform.compat.types import env_var
+    #local_model.serving_container_spec.env = [env_var.EnvVar(name="VERTEX_CPR_WEB_CONCURRENCY", value='1')]
 
     print(local_model.get_serving_container_spec())
-    #local_model.push_image()
-    #print("push image done")
-    #import sys; sys.exit()
+    local_model.push_image()
+    print("push image done")
+    import sys; sys.exit()
 
     # run local
     with local_model.deploy_to_local_endpoint(

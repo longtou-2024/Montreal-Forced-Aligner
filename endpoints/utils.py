@@ -1,6 +1,10 @@
 import xml.etree.ElementTree as ET
 import string
+import io
+import copy
 
+from pydub import AudioSegment
+import numpy as np
 
 def parse_timepoints(ssml_results, mfa_results):
     """edge case 대응
@@ -118,3 +122,60 @@ def parse_ssml(ssml_string):
 
     except ET.ParseError as e:
         raise Exception(f"SSML 파싱 오류: {e}")
+
+
+def limit_silence_duration(audio_buf: io.BytesIO, audio_format: str, mfa_result: dict, max_dur_s: float):
+    # NOTE(longtou): set minimum
+    max_dur_s = np.clip(max_dur_s, 0.1, None).item()
+
+    audio_segment = AudioSegment.from_file(audio_buf, format=audio_format)
+    #origin_audio_segment = audio_segment.copy()
+    #print(f"Total duration: {len(audio_segment)}ms")
+
+    out_mfa_result = copy.deepcopy(mfa_result)
+    out_word_entries = out_mfa_result['tiers']['words']['entries']
+    word_entries = mfa_result['tiers']['words']['entries']
+
+    max_dur_ms = max_dur_s * 1000
+    trimmed_audio_segments = []
+    for i in range(len(word_entries)):
+        word_begin_s, word_end_s, word = word_entries[i]
+        word_begin_ms = word_begin_s * 1000
+        word_end_ms = word_end_s * 1000
+        if word == "<eps>" and (word_end_s - word_begin_s) > max_dur_s:
+            delta_ms = (word_end_ms - word_begin_ms) - max_dur_ms
+            word_middle_ms = (word_end_ms + word_begin_ms) / 2
+            word_slice_begin_ms = word_middle_ms - (delta_ms/2)
+            word_slice_end_ms = word_middle_ms + (delta_ms/2)
+            trim_audio_seg = audio_segment[word_begin_ms:word_slice_begin_ms] + audio_segment[word_slice_end_ms:word_end_ms]
+            trimmed_audio_segments.append(trim_audio_seg)
+
+            # fix timestamp
+            delta_s = delta_ms / 1000
+            out_word_entries[i][1] = out_word_entries[i][1] - delta_s
+            for j in range(i+1, len(out_word_entries)):
+                out_word_entries[j][0] = out_word_entries[j][0] - delta_s
+                out_word_entries[j][1] = out_word_entries[j][1] - delta_s
+        else:
+            trimmed_audio_segments.append(audio_segment[word_begin_ms:word_end_ms])
+    trimmed_audio_segments = sum(trimmed_audio_segments)
+    out_audio_buf = io.BytesIO()
+
+    if audio_format == "wav":
+        trimmed_audio_segments.export(out_audio_buf, format=audio_format)
+    elif audio_format == "mp3":
+        trimmed_audio_segments.export(out_audio_buf, format=audio_format, bitrate="128k")
+    else:
+        raise Exception(f"audio_format: {audio_format} not supproted")
+    out_audio_buf.seek(0)
+
+    # NOTE(longtou): set float time precision to 2
+    for i in range(len(out_word_entries)):
+        out_word_entries[i][0] = round(out_word_entries[i][0], 2)
+        # edge case) exclude rounding at last idx & correct 'end' value
+        if i == len(out_word_entries) - 1:
+            out_mfa_result['end'] = out_word_entries[i][1]
+        else:
+            out_word_entries[i][1] = round(out_word_entries[i][1], 2)
+
+    return out_audio_buf, out_mfa_result
