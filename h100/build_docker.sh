@@ -1,5 +1,5 @@
 #docker build -t longtou/mfa:lt -f Montreal-Forced-Aligner/h100/Dockerfile .
-#docker build -t longtou/mfa:lt -f Montreal-Forced-Aligner/h100/Dockerfile.lite .
+#docker build -t longtou/mfa:lt -f lite/Montreal-Forced-Aligner/h100/Dockerfile.lite .
 docker build -t longtou/mfa:lt -f Montreal-Forced-Aligner/h100/Dockerfile.endpoint .
 
 #docker tag longtou/mfa:lt us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:lt

@@ -9,6 +9,7 @@ import soundfile
 
 from montreal_forced_aligner.lt_mfa2 import setup_mfa, align_one
 from montreal_forced_aligner.exceptions import AlignerError
+from espnet2.text.phoneme_tokenizer import PhonemeTokenizer
 
 
 dictionary_path="/home/longtou.2024/mount/longtou/db/commbooks/mfa/espeak/korean_espeak.dict"
@@ -20,6 +21,8 @@ json_text_key = "transcript"
 
 def main():
     acoustic_model, g2p_model, lexicon_compiler, tokenizer, conf = setup_mfa(dictionary_path, acoustic_model_path, g2p_model_path, temporary_directory=None)
+    phoneme_tokenizer = PhonemeTokenizer("espeak_ng_korean_word_sep")
+    g2p_model.espnet_tokenizer = phoneme_tokenizer
     conf['beam'] = 10
     conf['retry_beam'] = 40
 

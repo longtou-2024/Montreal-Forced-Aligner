@@ -12,6 +12,7 @@ import soundfile
 
 from montreal_forced_aligner.lt_mfa2 import setup_mfa, align_one
 from montreal_forced_aligner.exceptions import AlignerError
+from espnet2.text.phoneme_tokenizer import PhonemeTokenizer
 
 
 def gcp_cp(fname, gcs_url="gs://prod-ai-lab-speech-bucket/longtou/tmp"):
@@ -40,6 +41,8 @@ if __name__ == "__main__":
 
     dataset = wds.WebDataset(args.shard_url)
     acoustic_model, g2p_model, lexicon_compiler, tokenizer, conf = setup_mfa(args.dictionary_path, args.acoustic_model_path, args.g2p_model_path, args.temporary_directory)
+    phoneme_tokenizer = PhonemeTokenizer("espeak_ng_korean_word_sep")
+    g2p_model.espnet_tokenizer = phoneme_tokenizer
 
     outdir = Path("outdir")
     outdir.mkdir(exist_ok=True)
@@ -93,6 +96,7 @@ if __name__ == "__main__":
             f_log.write(f"{uttid} AlignerError\n")
             ret = {}
         except Exception as e:
+            #breakpoint()
             f_log.write(f"{uttid} Exception\n")
             ret = {}
 
