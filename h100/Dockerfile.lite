@@ -1,7 +1,7 @@
 # longtou.2024
 FROM gcr.io/deeplearning-platform-release/pytorch-cu121.2-3.py310
 
-RUN apt update && apt install -y parallel file # webdataset cache_dir error
+RUN apt update && apt install -y parallel file cmake espeak-ng # webdataset cache_dir error
 WORKDIR /root
 COPY lite/Montreal-Forced-Aligner /root/Montreal-Forced-Aligner
 WORKDIR /root/Montreal-Forced-Aligner

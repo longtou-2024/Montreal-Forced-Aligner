@@ -1,5 +1,6 @@
 # git clone espnet
 git submodule update --init --recursive
+# NOTE(longtou): comment "espnet/espnet2/__init__.py: from espnet import __version__"
 
 # install mfa
 ./activate_python.sh

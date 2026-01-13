@@ -3,6 +3,8 @@ import io, json
 import argparse
 import subprocess
 from functools import partial
+import os
+os.environ['OMP_NUM_THREADS'] = "1"
 
 from tqdm import tqdm
 import webdataset as wds
