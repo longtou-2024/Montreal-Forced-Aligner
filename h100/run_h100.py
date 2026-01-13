@@ -14,21 +14,21 @@ from kfp import kubernetes
 from kfp.dsl import PipelineTask
 from kfp.kubernetes import common
 
-IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v2.18"
+IMAGE_URL = "us-central1-docker.pkg.dev/prod-ai-project/tts/mfa:v3.0"
 N_GPU = 0
-N_CPU = "28"
-MEM_SIZE = "200Gi"
+N_CPU = "52"
+MEM_SIZE = "300Gi"
 MOUNT_PATH = "/home/longtou.2024/mount"
-RECIPE = "ku_old"
-SHARD_DIR = f"{MOUNT_PATH}/longtou/db/{RECIPE}/emilia_pipe"
+RECIPE = "literature"
+SHARD_DIR = f"{MOUNT_PATH}/longtou/db/{RECIPE}/wds_v3"
 DICT_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/korean_espeak.dict"
 AM_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/acoustic/korean_espeak.zip"
 G2P_PATH = f"{MOUNT_PATH}/longtou/db/commbooks/mfa/espeak/g2p/korean_espeak.zip"
 TEMP_DIR = "tempdir"
 # NOTE(longtou): mkdir wds_v2_mfa in advance
-GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/emilia_pipe_mfa"
-JSON_TEXT_KEY = "text" # ',' separated keys
-OUTDIR = "emilia_pipe_mfa"
+GCS_URL = f"gs://prod-ai-lab-speech-bucket/longtou/db/{RECIPE}/wds_v3_mfa"
+JSON_TEXT_KEY = "transcript" # ',' separated keys
+OUTDIR = "wds_v3_mfa"
 
 
 #$(cat /home/longtou.2024/mount/longtou/tmp/mediazen_teen_shard_list.txt)
