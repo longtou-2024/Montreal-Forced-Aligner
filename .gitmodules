@@ -2,3 +2,7 @@
 	path = espnet
 	url = https://github.com/longtou-2024/espnet.git
 	branch = develop
+[submodule "ai-lab-tts-g2p"]
+	path = ai-lab-tts-g2p
+	url = https://github.com/kakaoent/ai-lab-tts-g2p.git
+	branch = main
