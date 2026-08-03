@@ -57,19 +57,29 @@ def add_toleration_and_annotation(task: PipelineTask, annotations: dict) -> None
     task.platform_config["kubernetes"] = json_format.MessageToDict(msg)
 
 
-def git_sha(path: str) -> str:
-    """HEAD SHA. 워킹트리가 더러우면 `-dirty` 를 붙인다 — 이미지는 워킹트리를 ADD 하므로
-    dirty 인 채 발사하면 MANIFEST 의 SHA 로 재현이 안 된다."""
+def git_state(path: str) -> dict:
+    """HEAD SHA + 오염 상태. 이미지는 워킹트리를 ADD 하므로 dirty 인 채 발사하면
+    MANIFEST 의 SHA 로 재현이 안 된다.
+
+    tracked 수정과 untracked 파일을 **구분**한다 — 재현성을 실제로 깨는 것은 tracked
+    수정이고, untracked 는 대부분 `.dockerignore` 로 걸러지는 잔재(outdir/·tempdir/ 등)라
+    뭉뚱그리면 진짜 dirty 를 못 알아본다.
+    """
     try:
         sha = subprocess.check_output(
             ["git", "-C", path, "rev-parse", "--short=12", "HEAD"],
             text=True, stderr=subprocess.DEVNULL).strip()
-        st = subprocess.check_output(
-            ["git", "-C", path, "status", "--porcelain"],
-            text=True, stderr=subprocess.DEVNULL).strip()
-        return f"{sha}-dirty" if st else sha
+        modified = subprocess.call(
+            ["git", "-C", path, "diff", "--quiet", "HEAD"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0
+        untracked = subprocess.check_output(
+            ["git", "-C", path, "ls-files", "--others", "--exclude-standard"],
+            text=True, stderr=subprocess.DEVNULL).split()
+        return {"sha": f"{sha}-dirty" if modified else sha,
+                "tracked_modified": modified,
+                "untracked": sorted(untracked)[:20]}
     except Exception:
-        return "unknown"
+        return {"sha": "unknown", "tracked_modified": None, "untracked": []}
 
 
 def main() -> None:
@@ -82,11 +92,27 @@ def main() -> None:
               f"{8*a.shards_per_speaker}. MFA 는 화자(=pseudo-speaker) 수보다 많은 job 을 "
               f"쓰지 못하므로 min 값으로 클램프된다.")
 
+    # ⚠️ espnet 은 **MFA 레포의 서브모듈**을 재야 한다. 이미지에 들어가는 것은 그쪽이고,
+    #    독립 클론 `~/projects/espnet` 은 이미지와 무관하다(여러 트랙이 공유하는 작업본이라
+    #    항상 dirty 에 가깝다 — 처음에 그걸 재서 재현성 게이트가 오작동했다).
+    MFA_DIR = "/home/longtou.2024/projects/Montreal-Forced-Aligner"
+    st_mfa = git_state(MFA_DIR)
+    st_espnet = git_state(f"{MFA_DIR}/espnet")
     manifest_extra = json.dumps({
         "image": image,
-        "git_sha_mfa": git_sha("/home/longtou.2024/projects/Montreal-Forced-Aligner"),
-        "git_sha_espnet": git_sha("/home/longtou.2024/projects/espnet"),
+        "git_sha_mfa": st_mfa["sha"],
+        "git_sha_espnet": st_espnet["sha"],
+        # 개수만 남긴다 — 목록은 대부분 구 espeak 런의 잔재(tempdir/·outdir/·ssml_poc/)이고
+        # `.dockerignore` 로 이미지에서 제외되므로 MANIFEST 에 나열할 값이 없다.
+        "n_untracked_mfa": len(st_mfa["untracked"]),
     })
+    if st_mfa["tracked_modified"] or st_espnet["tracked_modified"]:
+        print("⚠️  tracked 수정이 남아 있다 — 이미지가 커밋과 다르다(재현 불가). "
+              "커밋 후 이미지를 다시 굽고 발사할 것.")
+    if st_mfa["untracked"]:
+        print(f"ℹ️  MFA 레포 untracked {len(st_mfa['untracked'])}건 "
+              f"(구 espeak 런 잔재, .dockerignore 로 이미지 제외): "
+              f"{st_mfa['untracked'][:3]} …")
 
     env = {
         "NJ": str(a.nj),
