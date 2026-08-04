@@ -28,6 +28,17 @@ OUT="${LOCAL_ROOT}/out"
 TSV="${LOCAL_ROOT}/skt8_text.tsv"
 mkdir -p "${AUDIO}" "${WORK}" "${OUT}"
 
+# 실패 시에도 학습 로그를 보존한다 (2026-08-03 풀런에서 train_align.log 유실 교훈).
+# ${WORK}/tmp/logs = train_cmd 가 남기는 단계별 로그 (features 등 대용량은 제외).
+upload_logs() {
+    if [ -d "${WORK}/tmp/logs" ]; then
+        tar -C "${WORK}/tmp" -czf "/tmp/logs_${RUN_TAG}.tar.gz" logs || return 0
+        gcloud storage cp "/tmp/logs_${RUN_TAG}.tar.gz" \
+            "${GCS_OUT}/logs_${RUN_TAG}.tar.gz" || true
+    fi
+}
+trap upload_logs EXIT
+
 MFA_ROOT=/root/Montreal-Forced-Aligner
 RECIPE="${MFA_ROOT}/espnet/egs2/skt_emotion/tts1"
 
@@ -66,6 +77,7 @@ log "run_mfa_skt8.sh 시작 (stage 0→4)"
 T_TRAIN=$SECONDS
 ./local/run_mfa_skt8.sh \
     --nj "${NJ}" \
+    --lexicon_source "${LEXICON_SOURCE:-train_dict}" \
     --shards_per_speaker "${SHARDS_PER_SPEAKER}" \
     --audio_root "${AUDIO}" \
     --text_tsv "${TSV}" \
@@ -83,6 +95,7 @@ import json, os
 print(json.dumps({
     "nj": int(os.environ["NJ"]),
     "shards_per_speaker": int(os.environ["SHARDS_PER_SPEAKER"]),
+    "lexicon_source": os.environ.get("LEXICON_SOURCE", "train_dict"),
     "n_alignments": ${N_ALN},
     "n_wav_staged": ${N_WAV},
     "seconds_train_align": ${SEC_TRAIN},
