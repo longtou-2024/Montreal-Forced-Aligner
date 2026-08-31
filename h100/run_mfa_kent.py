@@ -35,11 +35,36 @@ BUCKET = "gs://prod-ai-lab-speech-bucket/longtou"
 GPU_TAINT = dict(key="nvidia.com/gpu", operator="Equal",
                  value="present", effect="NoSchedule")
 
+# 정렬 대상 오디오 기본값 = **학습 정본 코퍼스(silnorm)**. 정렬 타임스탬프가 실제 학습
+# 오디오와 어긋나면 aligner 감독도 무음 클램프도 좌표를 잃는다.
+DEFAULT_AUDIO_TARS = f"{BUCKET}/h100/db/kent-kikiri/skt8_full_silnorm/audio_tars"
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--tag", required=True, help="이미지 태그 접미 (mfa-<tag>)")
     p.add_argument("--run-tag", default="skt8", help="산출물 태그")
+    # 오디오 소스 — 기본은 **silnorm**(현 학습 정본 코퍼스). 정렬 타임스탬프가 실제 학습
+    # 오디오와 일치해야 aligner 감독·무음 클램프가 성립한다. silnorm 은 tar 샤드로만
+    # 영속돼 있어 tar 경로가 기본이고, 개별 wav prefix 를 쓰려면 --audio-gs 를 준다.
+    # 기본값을 문자열로 박으면 --audio-gs 만 준 사용자의 의도가 조용히 무시된다
+    # (Codex 검수 2026-08-31 MAJOR) → None 센티넬로 두고 아래에서 해석한다.
+    p.add_argument("--audio-tars-gs", default=None,
+                   help=f"tar 샤드 prefix (기본 {DEFAULT_AUDIO_TARS})")
+    p.add_argument("--audio-gs", default=None,
+                   help="개별 wav prefix (구 경로: …/skt8_full/audio). "
+                        "--audio-tars-gs 와 동시 지정 불가")
+    # 코퍼스 인벤토리 — 엔트리가 스테이징 직후 정확 대조한다(부분 코퍼스 조기 차단).
+    p.add_argument("--expect-tars", type=int, default=16)
+    p.add_argument("--expect-wav", type=int, default=151680)
+    p.add_argument("--expect-tsv", type=int, default=150631)
+    # g2p 세대 게이트 — 이 트랙의 존재 이유가 g2p 교체다. 구 세대로 13시간을 태우지 않는다.
+    p.add_argument("--expect-g2p-sha", default="9c6faef",
+                   help="ai-lab-tts-g2p HEAD 가 이 SHA 로 시작해야 한다 (빈 문자열=검사 생략)")
+    p.add_argument("--allow-dirty", action="store_true",
+                   help="tracked 수정/unknown SHA 상태로도 발사 (재현성 포기, 명시적일 때만)")
+    p.add_argument("--overwrite", action="store_true",
+                   help="산출 prefix 가 비어있지 않아도 발사")
     # nj = 8(실화자) × shards. 128 = 8 × 16.
     p.add_argument("--nj", type=int, default=128)
     p.add_argument("--shards-per-speaker", type=int, default=16)
@@ -76,10 +101,40 @@ def git_state(path: str) -> dict:
             ["git", "-C", path, "ls-files", "--others", "--exclude-standard"],
             text=True, stderr=subprocess.DEVNULL).split()
         return {"sha": f"{sha}-dirty" if modified else sha,
+                "raw_sha": sha,
                 "tracked_modified": modified,
+                # 개수는 자르기 **전** 값을 따로 남긴다 (Codex 검수 2026-08-31 MINOR).
+                "n_untracked": len(untracked),
                 "untracked": sorted(untracked)[:20]}
     except Exception:
-        return {"sha": "unknown", "tracked_modified": None, "untracked": []}
+        return {"sha": "unknown", "raw_sha": "unknown", "tracked_modified": None,
+                "n_untracked": 0, "untracked": []}
+
+
+def image_digest(image: str) -> str:
+    """AR 에 실제로 존재하는 이미지의 digest. 없으면 빈 문자열.
+
+    태그는 가변이라 MANIFEST 의 태그만으로는 실행 바이트를 특정할 수 없다
+    (Codex 검수 2026-08-31 MAJOR). 겸사겸사 **이미지 미푸시 상태의 발사**도 여기서 잡힌다.
+    """
+    repo, _, tag = image.rpartition(":")
+    try:
+        out = subprocess.check_output(
+            ["gcloud", "artifacts", "docker", "images", "describe", f"{repo}:{tag}",
+             "--format=value(image_summary.digest)"],
+            text=True, stderr=subprocess.DEVNULL).strip()
+        return out
+    except Exception:
+        return ""
+
+
+def gcs_prefix_nonempty(prefix: str) -> bool:
+    try:
+        out = subprocess.check_output(["gcloud", "storage", "ls", f"{prefix}/"],
+                                      text=True, stderr=subprocess.DEVNULL).strip()
+        return bool(out)
+    except Exception:
+        return False
 
 
 def main() -> None:
@@ -98,26 +153,62 @@ def main() -> None:
     MFA_DIR = "/home/longtou.2024/projects/Montreal-Forced-Aligner"
     st_mfa = git_state(MFA_DIR)
     st_espnet = git_state(f"{MFA_DIR}/espnet")
+    # g2p 세대는 정렬 사전·phone 열을 통째로 바꾼다 → 산출물에 반드시 박는다
+    # (kent-kikiri 메모리 `g2p-phoneme-convention-drift`).
+    st_g2p = git_state(f"{MFA_DIR}/ai-lab-tts-g2p")
+
+    # ── 오디오 소스 해석 (상호배타) ────────────────────────────────────────────
+    if a.audio_gs and a.audio_tars_gs:
+        raise SystemExit("--audio-gs 와 --audio-tars-gs 는 동시에 줄 수 없다")
+    if a.audio_gs:
+        audio_tars, audio_wav = "", a.audio_gs
+    else:
+        audio_tars, audio_wav = (a.audio_tars_gs or DEFAULT_AUDIO_TARS), ""
+
+    # ── 발사 전 게이트 (전부 "13시간 뒤에 알게 되는 일"을 앞으로 당기는 장치) ──
+    if a.expect_g2p_sha and not st_g2p["raw_sha"].startswith(a.expect_g2p_sha):
+        raise SystemExit(
+            f"g2p SHA 불일치: 기대 {a.expect_g2p_sha}…, 실제 {st_g2p['raw_sha']}. "
+            f"이 트랙의 목적이 g2p 교체다 — 구 세대로 발사하지 않는다.")
+    dirty = [n for n, st in (("mfa", st_mfa), ("espnet", st_espnet), ("g2p", st_g2p))
+             if st["tracked_modified"] or st["sha"] == "unknown"]
+    if dirty and not a.allow_dirty:
+        raise SystemExit(
+            f"tracked 수정/unknown SHA: {', '.join(dirty)} — 이미지가 커밋과 달라 "
+            f"MANIFEST SHA 로 재현되지 않는다. 커밋 후 재빌드하거나 --allow-dirty 를 명시하라.")
+    digest = image_digest(image)
+    if not digest:
+        raise SystemExit(
+            f"이미지를 AR 에서 찾지 못했다: {image}. 빌드·푸시 후 발사하라 "
+            f"(태그 오타·미푸시를 여기서 잡는다).")
+
     manifest_extra = json.dumps({
         "image": image,
+        "image_digest": digest,
         "git_sha_mfa": st_mfa["sha"],
         "git_sha_espnet": st_espnet["sha"],
+        "git_sha_g2p": st_g2p["sha"],
+        "audio_source": audio_tars or audio_wav,
+        "audio_kind": "tar" if audio_tars else "wav",
         # 개수만 남긴다 — 목록은 대부분 구 espeak 런의 잔재(tempdir/·outdir/·ssml_poc/)이고
         # `.dockerignore` 로 이미지에서 제외되므로 MANIFEST 에 나열할 값이 없다.
-        "n_untracked_mfa": len(st_mfa["untracked"]),
+        "n_untracked_mfa": st_mfa["n_untracked"],
     })
-    if st_mfa["tracked_modified"] or st_espnet["tracked_modified"]:
-        print("⚠️  tracked 수정이 남아 있다 — 이미지가 커밋과 다르다(재현 불가). "
-              "커밋 후 이미지를 다시 굽고 발사할 것.")
+    if dirty:  # --allow-dirty 로 통과한 경우에만 여기 온다
+        print(f"⚠️  --allow-dirty 로 진행: {', '.join(dirty)} (재현 불가 상태)")
     if st_mfa["untracked"]:
-        print(f"ℹ️  MFA 레포 untracked {len(st_mfa['untracked'])}건 "
+        print(f"ℹ️  MFA 레포 untracked {st_mfa['n_untracked']}건 "
               f"(구 espeak 런 잔재, .dockerignore 로 이미지 제외): "
               f"{st_mfa['untracked'][:3]} …")
 
     env = {
         "NJ": str(a.nj),
         "SHARDS_PER_SPEAKER": str(a.shards_per_speaker),
-        "GCS_AUDIO": f"{BUCKET}/h100/db/kent-kikiri/skt8_full/audio",
+        "GCS_AUDIO": audio_wav,
+        "GCS_AUDIO_TARS": audio_tars,
+        "EXPECT_TARS": str(a.expect_tars) if audio_tars else "",
+        "EXPECT_WAV": str(a.expect_wav),
+        "EXPECT_TSV": str(a.expect_tsv),
         "GCS_TEXT_TSV": f"{BUCKET}/h100/db/kent-kikiri/round2/aligner_ko/kent/skt8_text.tsv",
         "GCS_OUT": f"{BUCKET}/h100/db/kent-kikiri/round2/aligner_ko/kent/{a.run_tag}",
         # ⚠️ gcsfuse 마운트가 아니라 **pod 로컬 ephemeral** 이어야 한다.
@@ -153,12 +244,23 @@ def main() -> None:
         # (MFA temp I/O 를 실수로 마운트에 흘리는 것을 구조적으로 막는다).
         add_toleration_and_annotation(task, {"run_tag": a.run_tag})
 
+    # 산출 prefix 덮어쓰기 방지 — 구 런(skt8/·skt8-d2/)을 지우지 않는다
+    # (Codex 검수 2026-08-31 MAJOR). 부분 업로드 판별은 엔트리가 마지막에 쓰는 _SUCCESS 로.
+    if gcs_prefix_nonempty(env["GCS_OUT"]) and not a.overwrite:
+        raise SystemExit(
+            f"산출 prefix 가 비어있지 않다: {env['GCS_OUT']}\n"
+            f"다른 --run-tag 를 쓰거나, 의도적 덮어쓰기면 --overwrite 를 명시하라.")
+
     pkg = "/tmp/kent_mfa_skt8.yaml"
     compiler.Compiler().compile(pipeline_func=pipe, package_path=pkg)
     print(f"compiled → {pkg}")
     print(f"image  = {image}")
     print(f"cpu    = {cpu} / mem = {a.memory} / min_disk = {a.min_disk_gb}GB")
     print(f"nj     = {a.nj} (pseudo-speakers = 8 × {a.shards_per_speaker})")
+    print(f"audio  = {audio_tars or audio_wav}{' (tar)' if audio_tars else ' (wav)'}")
+    print(f"expect = tars {a.expect_tars} / wav {a.expect_wav} / tsv {a.expect_tsv}")
+    print(f"digest = {digest}")
+    print(f"g2p    = {st_g2p['sha']}")
     print(f"out    = {env['GCS_OUT']}")
     if a.dry_run:
         print("--dry-run: 제출하지 않음")
